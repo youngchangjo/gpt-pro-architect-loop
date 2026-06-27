@@ -1,25 +1,46 @@
 ---
 name: gpt-pro-architect-loop
-description: Use when the user wants ChatGPT Pro or Oracle to act as an external architect, reviewer, or decision gate for Codex work across repo implementation rounds.
-version: 0.2.0
+description: Use when the user wants ChatGPT Pro to act as an external architect, reviewer, or decision gate for Codex work across repo implementation rounds; optionally use Oracle as a transport helper when available.
+version: 0.2.1
 ---
 
 # GPT Pro Architect Loop
 
 Use a dedicated external architect loop while Codex remains the builder with local repo access. The local repo is the canonical memory; the external model is an advisory reviewer fed by bounded, redacted packets.
 
-Prefer Oracle when it is installed because it handles file bundling, dry runs, sessions, follow-ups, and browser automation more reliably than manual ChatGPT.com operation. Keep the original browser path as the fallback.
+Oracle is optional. Prefer it when it is installed because it handles file bundling, dry runs, sessions, follow-ups, and browser automation more reliably than manual ChatGPT.com operation. If Oracle is absent, blocked, or not approved for the current task, use the original browser path without treating that as a failure.
+
+## Mental Model
+
+Required core gate:
+
+1. Build a focused packet.
+2. Redact it.
+3. Get approval before external transmission.
+4. Send it through any approved transport.
+5. Save the response.
+6. Append the ledger.
+7. Update durable handoff notes.
+
+Optional transport choices:
+
+- Oracle MCP.
+- Oracle CLI.
+- Oracle render/copy.
+- Manual ChatGPT.com browser.
+
+The transport can change per round. The local packet/response/ledger/handoff artifacts must not change.
 
 ## Transport Priority
 
-Use the first available path that fits the user's approval scope:
+Use the first available path that fits the user's approval scope. Skip Oracle when it is not installed, unavailable in the current Codex session, blocked by browser state, or outside the user's approval scope.
 
 1. Oracle MCP `consult` when the `oracle` MCP server is available in the current Codex session.
 2. Oracle CLI `oracle` when the CLI is installed but MCP is not available in this session.
 3. Oracle render/copy mode when automation is blocked but a prepared bundle is still useful.
 4. Manual ChatGPT.com browser thread as the final fallback.
 
-Do not let a stronger transport weaken the safety rules. Oracle is a delivery layer, not the source of truth.
+Do not let a stronger transport weaken the safety rules. Oracle is a delivery layer, not the source of truth. Manual ChatGPT browser remains a valid path.
 
 ## Non-Negotiables
 
@@ -58,7 +79,7 @@ Do not let a stronger transport weaken the safety rules. Oracle is a delivery la
 - approval scope:
 ```
 
-5. Check local transport availability:
+5. Optionally check local Oracle availability:
 
 ```bash
 command -v oracle
@@ -66,11 +87,11 @@ oracle --version
 oracle status --hours 24 --limit 20
 ```
 
-6. If Oracle MCP is configured for Codex, prefer it. If it is not available in the current session, use the CLI and note that MCP may require a new Codex session after config changes.
+6. If Oracle MCP is configured for Codex, prefer it. If it is not available in the current session, use the CLI or manual browser path and note that MCP may require a new Codex session after config changes.
 
 ## Oracle MCP Flow
 
-Use this path only when the `oracle` MCP server is available as a callable tool in the current session.
+Use this optional path only when the `oracle` MCP server is available as a callable tool in the current session.
 
 1. Build the packet locally first; save it under `.codex/gpt-pro-architect/packets/packet-<N>.md`.
 2. Run an MCP dry run before the real consult:
@@ -102,7 +123,7 @@ Use this path only when the `oracle` MCP server is available as a callable tool 
 
 ## Oracle CLI Flow
 
-Use this when Oracle is installed but MCP is not available in the current Codex session.
+Use this optional path when Oracle is installed but MCP is not available in the current Codex session.
 
 1. Save the packet first.
 2. Preview the resolved bundle:
@@ -142,7 +163,7 @@ oracle session <session-id-or-slug> --render
 
 ## Manual Browser Fallback
 
-Use this only when Oracle is not installed, Oracle is blocked, or the user explicitly asks for the manual path.
+Use this when Oracle is not installed, Oracle is blocked, Oracle is outside the current approval scope, or the user explicitly asks for the manual path. This is a first-class fallback, not a degraded review process.
 
 1. Open or create one dedicated ChatGPT.com thread in the Codex internal browser first. If that is not possible, fall back to Chrome, then Computer Use.
 2. In the current visible model picker, choose the best available Pro/Extended option. If no suitable Pro option is visible, stop and ask the user which model to use.
@@ -242,8 +263,8 @@ Collect focused diffs and test output, not the whole repo. Before sending, do a 
 - Replace suspicious values with `[REDACTED]`.
 - If a secret-like line is needed for architecture, describe the shape only, not the value.
 - If redaction is uncertain, do not send. Ask the user.
-- Use Oracle `--dry-run summary` or MCP `dryRun: true` before live transmission when the file set changed.
-- Use Oracle `--files-report` when attaching more than one packet or any source file.
+- When using Oracle, run `--dry-run summary` or MCP `dryRun: true` before live transmission when the file set changed.
+- When using Oracle, use `--files-report` when attaching more than one packet or any source file.
 
 ## Ledger
 

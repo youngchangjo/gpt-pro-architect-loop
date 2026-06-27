@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - 2026-06-27
+
+- Clarified that Oracle is optional and the manual ChatGPT browser path remains valid.
+- Added README flow charts for the decision flow and artifact flow.
+- Split required core gate responsibilities from optional transport choices.
+- Updated packet workflow wording so Oracle dry-runs apply only when Oracle is used.
+
 ## 0.2.0 - 2026-06-27
 
 - Added Oracle-first transport order: MCP, CLI, render/copy, manual browser fallback.
