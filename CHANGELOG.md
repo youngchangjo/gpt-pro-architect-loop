@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 - 2026-07-01
+
+- Added an explicit browser reuse policy for Oracle/ChatGPT browser consults.
+- Prefer saved conversation URLs, Oracle sessions, `--followup`, saved browser tab refs, `--browser-attach-running`, or user-provided `--remote-chrome` before opening a fresh Chrome window.
+- Clarified that MCP consult can still be used for normal runs, but CLI is preferred when a same-topic browser surface must be reused and MCP does not expose attach-running/tab fields.
+- Required reuse attempts and any browser automation limitations to be recorded in `thread.md` and `ledger.md`.
+
 ## 0.3.0 - 2026-06-28
 
 - Added same-topic continuity rules so one command/topic reuses the same architect conversation by default.

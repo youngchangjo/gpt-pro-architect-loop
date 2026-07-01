@@ -6,7 +6,7 @@ Oracle is optional. It is a faster transport for bundling files, running dry-run
 
 ## Current Status
 
-- Skill version: `0.3.0`
+- Skill version: `0.3.1`
 - Oracle installed on this Mac: `0.15.0` for convenience, but not required by the skill
 - Local source of truth: `skills/gpt-pro-architect-loop/SKILL.md`
 - Installed Codex skill target: `~/.codex/skills/gpt-pro-architect-loop/SKILL.md`
@@ -147,6 +147,7 @@ While the topic is active:
 - keep the browser open when possible
 - use one stable slug family, such as `snapview-mobile-sliced-release`
 - prefer `browserFollowUps` or CLI `--browser-follow-up` for challenge/final-decision rounds
+- prefer existing browser/session reuse before opening a fresh Chrome window: saved conversation URL, Oracle `--followup`, saved `--browser-tab`, `--browser-attach-running`, or user-provided `--remote-chrome`
 - record every conversation URL and Oracle session id in `.codex/gpt-pro-architect/thread.md`
 - if a new session is unavoidable, put the reason in both `thread.md` and `ledger.md`
 

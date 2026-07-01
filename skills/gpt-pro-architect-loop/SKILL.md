@@ -1,7 +1,7 @@
 ---
 name: gpt-pro-architect-loop
 description: Use when the user wants ChatGPT Pro to act as an external architect, reviewer, or decision gate for Codex work across repo implementation rounds; optionally use Oracle as a transport helper when available.
-version: 0.3.0
+version: 0.3.1
 ---
 
 # GPT Pro Architect Loop
@@ -61,6 +61,31 @@ For same-topic work:
 4. Keep browser conversations unarchived until the topic is complete: use `browserArchive: "never"` and `browserKeepBrowser: true` in Oracle MCP, or the equivalent CLI flags.
 5. If Oracle MCP cannot continue a completed ChatGPT conversation, switch to Oracle CLI `--followup`, `--browser-tab`, render/copy, or manual browser continuation instead of silently starting a new chat.
 6. If a new session is unavoidable, keep the same `topic_id` and slug family, record the reason, and include the previous conversation URL in the next packet.
+
+## Browser Reuse Policy
+
+Prefer reusing an existing ChatGPT/Oracle Chrome surface over opening a fresh Chrome window. A new browser window is acceptable only when reuse is not available, not supported by the active transport, or would risk crossing topics/accounts/approval scopes.
+
+Before a browser-based consult:
+
+1. Read `.codex/gpt-pro-architect/thread.md` and look for:
+   - `active conversation url`
+   - `oracle latest session id`
+   - `browser tab ref`
+   - `slug family`
+   - `continuation limitation`
+2. Run `oracle status --hours 72 --limit 50` when Oracle CLI is available.
+3. If a same-topic Oracle session or ChatGPT conversation exists, continue it with `--followup` or a saved browser tab instead of creating a new session.
+4. Keep `--browser-keep-browser` and `--browser-archive never` for active topics so the browser surface remains reusable.
+5. If Oracle dry-run or output says it will launch a visible Chrome window and an existing Oracle-controlled Chrome is already available, prefer one of these reuse paths before the live run:
+   - `--followup <sessionId|responseId>` for same-topic continuation;
+   - `--browser-tab <saved-tab-or-conversation-ref>` when a tab ref or conversation URL is known and the installed Oracle CLI accepts it;
+   - `--browser-attach-running` to attach to an existing Oracle/Chrome browser when the installed Oracle CLI supports it;
+   - `--remote-chrome <debug-endpoint>` only when the user intentionally provided a remote-debugging Chrome endpoint.
+6. If MCP consult does not expose attach-running or tab-selection fields, use MCP for normal new consults but switch to Oracle CLI for same-topic browser reuse when the saved session/tab matters.
+7. If none of the reuse paths works, record the limitation in `thread.md` and `ledger.md` before opening a new browser conversation.
+
+Do not inspect Chrome cookies, local storage, profiles, passwords, or account internals while trying to reuse a browser. Reuse means targeting a known conversation/session surface, not reading browser state.
 
 ## Non-Negotiables
 
@@ -198,17 +223,32 @@ oracle status --hours 72 --limit 50
 oracle session <session-id-or-slug> --render
 ```
 
-6. If the next packet belongs to the same topic and Oracle can continue the browser session, prefer follow-up continuation:
+6. If the next packet belongs to the same topic and Oracle can continue the browser session, prefer follow-up continuation and browser reuse. Keep the same Chrome/conversation surface when possible:
 
 ```bash
 oracle \
   --followup <session-id-or-response-id> \
+  --browser-archive never \
+  --browser-keep-browser \
   --browser-follow-up "Challenge the prior decision. Keep the scope tight." \
   --browser-follow-up "Return the final APPROVE, REVISE, or BLOCK decision in the required format." \
   --prompt "Review the next packet in the same architect topic."
 ```
 
-7. Record Oracle session id, slug, model, engine, archive mode, keep-browser setting, conversation URL, and any browser automation limitation in `thread.md` and `ledger.md`.
+7. If a previous Oracle Chrome window is still open but `--followup` alone would launch a new one, try the installed CLI's browser reuse flags before sending the live packet:
+
+```bash
+oracle \
+  --followup <session-id-or-response-id> \
+  --browser-attach-running \
+  --browser-archive never \
+  --browser-keep-browser \
+  --prompt "Review the next packet in the same architect topic."
+```
+
+If `--browser-attach-running` is unsupported by the installed Oracle version, remove it and record that limitation. If the user has provided a remote-debugging Chrome endpoint, use `--remote-chrome <debug-endpoint>` instead of launching a new Chrome.
+
+8. Record Oracle session id, slug, model, engine, archive mode, keep-browser setting, conversation URL, browser tab/ref reuse attempt, and any browser automation limitation in `thread.md` and `ledger.md`.
 
 ## Manual Browser Fallback
 
