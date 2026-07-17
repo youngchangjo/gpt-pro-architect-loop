@@ -1,8 +1,69 @@
 # GPT Pro Architect Loop
 
-Codex skill and operating guide for using ChatGPT Pro as an external architecture/review gate. The skill keeps Codex as the local builder and keeps repo-local evidence as the source of truth.
+<p align="center">
+  <img src="docs/assets/gpt-pro-architect-loop-overview-en.png" width="640" alt="GPT Pro Architect Loop overview showing why GPT Pro is used as the architect and how Codex and ChatGPT Pro exchange review packets" />
+</p>
+<p align="center">
+  <a href="docs/assets/gpt-pro-architect-loop-overview-en.png">English infographic</a> · <a href="docs/assets/gpt-pro-architect-loop-overview-ko.png">한국어 인포그래픽</a>
+</p>
+
+GPT Pro Architect Loop separates implementation from architecture review. Codex remains the builder with full local-repo access; ChatGPT Pro receives a bounded, user-approved packet and acts as the architect that challenges plans, diffs, tests, tradeoffs, and risks.
+
+The value comes from the exchange, not a one-shot answer: Codex sends focused evidence, GPT Pro returns critique, alternatives, and an `APPROVE`, `REVISE`, or `BLOCK` decision, then Codex revises and tests locally before sending the next packet. The same-topic loop continues while repo-local evidence remains the source of truth.
 
 Oracle is optional. It is a faster transport for bundling files, running dry-runs, managing sessions, and driving ChatGPT browser/API flows. The core architect loop still works without Oracle through the manual ChatGPT browser path.
+
+## Why Use GPT Pro As The Architect
+
+Architecture review is a different job from implementation. GPT Pro is the preferred review target when a decision benefits from deeper reasoning across multiple constraints rather than another implementation pass.
+
+| Advantage | What it adds to the loop |
+| --- | --- |
+| Deep tradeoff analysis | Compares architecture options across correctness, complexity, failure modes, rollback, and verification cost. |
+| Cross-evidence synthesis | Reviews the plan, focused diff, test output, unresolved questions, and risks as one decision packet. |
+| Role separation | Keeps the builder from being the only judge of its own approach and creates an explicit adversarial review pass. |
+| Structured gate | Converts review into an actionable `APPROVE`, `REVISE`, or `BLOCK` result instead of open-ended advice. |
+
+This is a workflow advantage, not a claim that GPT Pro is infallible. Its response is advisory, the user remains the authority, and local evidence wins whenever it conflicts with an external answer.
+
+## Builder-Architect Contract
+
+| Codex · Builder | ChatGPT Pro · Architect |
+| --- | --- |
+| Reads and changes the local repo. | Sees only the approved, redacted packet. |
+| Implements, tests, and gathers runtime evidence. | Challenges architecture, tradeoffs, risks, and missing evidence. |
+| Sends the next focused packet after a revision. | Returns critique, alternatives, and a structured decision. |
+| Saves responses and decisions in the local ledger. | Remains advisory and never becomes canonical memory. |
+
+The user approves external transmission and remains the final decision-maker.
+
+## How The Codex ↔ ChatGPT Pro Loop Works
+
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant C as Codex · Builder
+  participant R as Local repo · Ledger
+  participant P as ChatGPT Pro · Architect
+
+  C->>R: Implement, test, and collect focused evidence
+  C->>U: Request approval for packet and data categories
+  alt Transmission approved
+    U-->>C: Approve bounded external review
+    C->>P: Packet 01 · plan, question, evidence
+    P-->>C: Response 01 · critique, alternatives, decision
+    C->>R: Save response, revise, and test locally
+    loop Until APPROVE or BLOCK
+      C->>P: Next packet · diff, tests, new evidence
+      P-->>C: Re-review · APPROVE / REVISE / BLOCK
+      C->>R: Record the decision and act locally
+    end
+  else Not approved
+    U-->>C: Keep the work local
+  end
+```
+
+This back-and-forth is the core loop. Same-topic packets continue in the same ChatGPT conversation and, when browser automation is used, the same recorded Chrome tab. Conversation context helps continuity, but packet, response, ledger, and repo notes remain canonical.
 
 ## Current Status
 
@@ -41,54 +102,30 @@ Older Oracle builds can normalize the GPT-5.6 browser labels to an older model. 
 
 A dry run proves route resolution, not a live ChatGPT model. Record the Oracle version, requested alias, resolved dry-run model, live picker label, and any rollout or server-generation uncertainty. A live run still requires approval for the exact destination and data categories.
 
-## Mental Model
+## Safety, Memory, And Transport
 
-There are two separate layers:
+There are four separate layers:
 
-- **Core gate**: packet, approval, redaction, external review, response, ledger, continuity notes.
+- **Local work**: Codex implements, tests, and gathers evidence in the repo.
+- **Review gate**: packet, approval, redaction, GPT Pro review, and structured decision.
 - **Transport**: Oracle MCP, Oracle CLI, Oracle render/copy, or manual ChatGPT browser.
 - **Continuity**: one external architect conversation per command, topic, and approval scope unless a new thread is explicitly justified.
 
-Only the core gate is required. Oracle is a transport optimization.
-
-```mermaid
-flowchart TD
-  A[Codex works in local repo] --> B[Collect focused facts and evidence]
-  B --> C[Build redacted architect packet]
-  C --> D{User approved external transmission?}
-  D -- No --> E[Stop or keep work local]
-  D -- Yes --> F{Which transport is available?}
-  F -- Oracle MCP loaded --> G[MCP dryRun, then consult]
-  F -- Oracle CLI installed --> H[CLI dry-run, then live run]
-  F -- Automation blocked --> I[Oracle render/copy for manual paste]
-  F -- No Oracle --> J[Manual ChatGPT browser thread]
-  G --> K[Architect response]
-  H --> K
-  I --> K
-  J --> K
-  K --> L[Save response and append ledger]
-  L --> M{Decision}
-  M -- APPROVE --> N[Proceed with local implementation or verification]
-  M -- REVISE --> O[Patch only named gaps and send next packet]
-  M -- BLOCK --> P[Stop and gather named evidence or user decision]
-```
+The review gate and local artifacts define the workflow. Oracle is only a transport optimization.
 
 ```mermaid
 flowchart LR
-  A[Local repo truth] --> B[Packet]
-  B --> C[External architect]
-  C --> D[Response]
-  D --> E[Ledger]
-  E --> F[Continuity notes]
-  F --> G[Next local slice]
-
-  H[Oracle optional] -. bundles/sends/reattaches .-> C
-  I[Manual browser optional] -. paste/upload .-> C
+  R[Local repo truth] --> C[Codex builder]
+  C -->|Approved bounded packet| P[GPT Pro architect]
+  P -->|Critique, alternatives, gate| C
+  C -->|Implementation, tests, ledger| R
+  O[Oracle optional transport] -. bundles, sends, reattaches .-> P
+  M[Manual browser transport] -. paste or upload .-> P
 ```
 
-## Why This Exists
+## Why The Transport Layer Exists
 
-The original flow used a dedicated ChatGPT.com Pro thread as a reviewer. That worked, but browser operation was slow and easy to lose track of:
+The original loop used a dedicated ChatGPT.com Pro thread as the reviewer. The builder-architect exchange worked, but manual browser operation was slow and easy to lose track of:
 
 - manual model selection
 - manual packet paste/upload
