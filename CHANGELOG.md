@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 - 2026-07-17
+
+- Patched Oracle browser startup so a newly launched Oracle-owned Chrome closes the unused `about:blank` bootstrap tab as soon as the isolated run tab is attached.
+- Kept blank-tab cleanup disabled for reused, attach-running, and remote Chrome paths so Oracle never sweeps user-owned tabs.
+- Pinned the tested fix in `youngchangjo/oracle` at commit `d4175f3` and installed the packed fork build on this Mac.
+- Added a fresh-launch tab invariant to the browser reuse policy, CLI guidance, completion checklist, and common-mistake list.
+
 ## 0.5.0 - 2026-07-17
 
 - Made same-topic Chrome reuse fail-closed: later packets must positively prove attachment to the recorded browser endpoint and exact ChatGPT tab before a live run.

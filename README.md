@@ -67,12 +67,33 @@ This back-and-forth is the core loop. Same-topic packets continue in the same Ch
 
 ## Current Status
 
-- Skill version: `0.5.0`
+- Skill version: `0.5.1`
 - Preferred architect target: ChatGPT `Pro` (GPT-5.6 Sol Pro on eligible accounts)
 - GPT-5.6 Sol browser/API model id: `gpt-5.6-sol`
-- Oracle installed on this Mac: `0.16.0` for GPT-5.6 routing, but Oracle remains optional
+- Oracle installed on this Mac: `0.16.0` fork build at `youngchangjo/oracle@d4175f3` for GPT-5.6 routing and fresh-launch blank-tab cleanup; Oracle remains optional
 - Local source of truth: `skills/gpt-pro-architect-loop/SKILL.md`
 - Installed Codex skill target: `~/.codex/skills/gpt-pro-architect-loop/SKILL.md`
+
+## Oracle Blank Startup Tab Fix
+
+Upstream Oracle `0.16.0` launches Chrome with a default `about:blank` target and then creates a separate isolated target for the ChatGPT run. The pinned fork closes only that unused startup target immediately after the isolated target is attached.
+
+- Fresh Chrome launched and owned by Oracle: remove the unused blank bootstrap tab.
+- Reused, attach-running, or remote Chrome: do not close any existing blank tab.
+- Same-topic continuation: keep reusing the recorded ChatGPT target exactly as before.
+
+The tested source is [`youngchangjo/oracle@d4175f3`](https://github.com/youngchangjo/oracle/commit/d4175f3e5ef764f52649e21f2bf514fe77865b21). Build and install it reproducibly with:
+
+```bash
+git clone --branch codex/close-bootstrap-blank-tab \
+  https://github.com/youngchangjo/oracle.git oracle
+cd oracle
+pnpm install --frozen-lockfile
+pnpm pack --pack-destination /tmp
+npm install -g /tmp/steipete-oracle-0.16.0.tgz
+```
+
+New CLI processes use the patched build immediately. Restart Codex before relying on an already-running Oracle MCP server to load it.
 
 ## GPT-5.6 Targeting
 
@@ -269,6 +290,8 @@ oracle --version
 oracle --help --verbose | rg 'gpt-5\.6|gpt-5-pro'
 ```
 
+That command installs the standard upstream package, which does not yet contain the fresh-launch blank-tab fix. On this Mac, use the pinned fork build documented in [Oracle Blank Startup Tab Fix](#oracle-blank-startup-tab-fix); reinstalling the upstream `0.16.0` package will replace the patch.
+
 Install or update the Codex skill from this repo:
 
 ```bash
@@ -372,6 +395,8 @@ oracle \
 ```
 
 Remove `--dry-run summary` only after approval is confirmed. After the live run, record the endpoint and exact ChatGPT conversation URL or target id in `thread.md`.
+
+On a fresh Oracle-owned launch, the isolated ChatGPT work tab should be the only page target after attachment; the launcher's unused `about:blank` tab should already be closed. Never apply that cleanup to reused, attach-running, or remote Chrome.
 
 For every later packet in the same topic, preview an attach to that exact browser and tab:
 
@@ -501,9 +526,14 @@ Every release should update:
 ## References
 
 - Oracle upstream: https://github.com/steipete/oracle
+- Oracle blank-tab fix: https://github.com/youngchangjo/oracle/commit/d4175f3e5ef764f52649e21f2bf514fe77865b21
 - Oracle 0.16.0 package: https://www.npmjs.com/package/@steipete/oracle/v/0.16.0
 - Oracle MCP docs: https://askoracle.sh/mcp.html
 - Oracle browser mode docs: https://askoracle.sh/browser-mode.html
 - OpenAI GPT-5.6 launch: https://openai.com/index/gpt-5-6/
 - OpenAI GPT-5.6 in ChatGPT: https://help.openai.com/en/articles/20001354-gpt-56-in-chatgpt/
 - OpenAI API models: https://developers.openai.com/api/docs/models
+
+## License
+
+Released under the [MIT License](LICENSE).

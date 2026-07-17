@@ -1,7 +1,7 @@
 ---
 name: gpt-pro-architect-loop
 description: Use when the user wants ChatGPT Pro to act as an external architect, reviewer, or decision gate for Codex work across repo implementation rounds; optionally use Oracle as a transport helper when available.
-version: 0.5.0
+version: 0.5.1
 ---
 
 # GPT Pro Architect Loop
@@ -117,12 +117,13 @@ Before a browser-based consult:
    - `continuation limitation`
 2. Run `oracle status --hours 72 --limit 50` when Oracle CLI is available.
 3. For the first packet with no reusable surface, launch exactly one persistent Oracle browser on a fixed port such as `9222` with `--browser-port 9222 --browser-keep-browser --browser-archive never`. After the live run, record the actual endpoint and exact active conversation URL or target id.
-4. For every later packet, use all of `--browser-attach-running`, `--remote-chrome <recorded-endpoint>`, and `--browser-tab <recorded-exact-url-or-target-id>`. Use `--browser-model-strategy current` and `--browser-archive never`; omit `--browser-keep-browser`, `--browser-port`, and `--followup` from the attach command.
-5. Run that exact later-packet command with `--dry-run summary` first. Continue only when its control plan says it will attach to an already-running browser, reuse the matching ChatGPT tab, and leave the existing browser process alone.
-6. Reject the live run if the dry run says it will launch Chrome, open a dedicated ChatGPT tab, cannot match the endpoint/tab, or otherwise lacks positive reuse evidence. Do not remove the attach flags to make the command succeed.
-7. Prefer an exact conversation URL or target id over `--browser-tab current`. Use `current` only immediately after verifying that the endpoint's current tab is the recorded active conversation.
-8. If MCP consult does not expose endpoint and tab selection, use MCP only for a first/new consult or follow-ups bundled into the same invocation. Switch to the CLI attach path for later same-topic packets.
-9. If attach is unsupported or fails, record the limitation and manually continue in the already-visible tab, or pause for user direction. Opening a new window is not an automatic fallback.
+4. On a fresh Oracle-owned Chrome launch, require the unused `about:blank` bootstrap target to close as soon as the isolated run tab is attached. If it remains, update to the patched Oracle build before the next new-topic launch. Never sweep blank tabs when reusing, attaching to, or remotely controlling an existing browser.
+5. For every later packet, use all of `--browser-attach-running`, `--remote-chrome <recorded-endpoint>`, and `--browser-tab <recorded-exact-url-or-target-id>`. Use `--browser-model-strategy current` and `--browser-archive never`; omit `--browser-keep-browser`, `--browser-port`, and `--followup` from the attach command.
+6. Run that exact later-packet command with `--dry-run summary` first. Continue only when its control plan says it will attach to an already-running browser, reuse the matching ChatGPT tab, and leave the existing browser process alone.
+7. Reject the live run if the dry run says it will launch Chrome, open a dedicated ChatGPT tab, cannot match the endpoint/tab, or otherwise lacks positive reuse evidence. Do not remove the attach flags to make the command succeed.
+8. Prefer an exact conversation URL or target id over `--browser-tab current`. Use `current` only immediately after verifying that the endpoint's current tab is the recorded active conversation.
+9. If MCP consult does not expose endpoint and tab selection, use MCP only for a first/new consult or follow-ups bundled into the same invocation. Switch to the CLI attach path for later same-topic packets.
+10. If attach is unsupported or fails, record the limitation and manually continue in the already-visible tab, or pause for user direction. Opening a new window is not an automatic fallback.
 
 Do not inspect Chrome cookies, local storage, profiles, passwords, or account internals while trying to reuse a browser. Reuse means targeting a known conversation/session surface, not reading browser state.
 
@@ -189,9 +190,13 @@ command -v oracle
 oracle --version
 oracle --help --verbose | rg 'gpt-5\.6|gpt-5-pro'
 oracle status --hours 24 --limit 20
+rg -n 'closeOtherBlankTabs: !reusedChrome' \
+  "$(npm root -g)/@steipete/oracle/dist/src/browser/index.js"
 ```
 
-6. If Oracle MCP is configured for Codex, prefer it for a new topic. When strict same-window reuse is active and MCP cannot target the recorded endpoint/tab, prefer CLI attach or manual continuation. If MCP is unavailable, use the CLI or manual browser path and note that MCP may require a new Codex session after config changes.
+The final check identifies the fresh-launch blank-tab patch pinned on this Mac at `youngchangjo/oracle@d4175f3`. If it is missing, standard Oracle still works, but it can leave Chrome's bootstrap `about:blank` tab open.
+
+6. If Oracle MCP is configured for Codex, prefer it for a new topic. When strict same-window reuse is active and MCP cannot target the recorded endpoint/tab, prefer CLI attach or manual continuation. If MCP is unavailable, use the CLI or manual browser path and note that MCP may require a new Codex session after config changes or a patched Oracle reinstall.
 
 ## Oracle MCP Flow
 
@@ -255,6 +260,7 @@ oracle \
 ```
 
 3. If the dry run is clean and the user has approved the destination/data categories, run it without `--dry-run`. Immediately record `127.0.0.1:9222` (or the chosen port) and the exact resulting ChatGPT conversation URL or target id in `thread.md`.
+   - On a newly launched Oracle-owned browser, verify that the isolated ChatGPT work tab is the only page target and the launcher's unused `about:blank` tab has already closed.
 4. For every later packet in the same topic, preview the exact attach command:
 
 ```bash
@@ -496,6 +502,7 @@ Before reporting back:
 - No known secrets or unrelated personal data were transmitted.
 - Oracle session id or browser thread URL is recorded when available.
 - For same-topic browser work, the endpoint, exact tab ref, positive reuse preflight, and new-window count are recorded.
+- A fresh Oracle-owned launch left no unused blank startup tab; reused or attached browser tabs were left untouched.
 - Oracle version, requested alias, dry-run resolution, and live picker evidence are recorded when available.
 - Archive behavior, continuation behavior, skipped MCP setup, browser automation, model selection uncertainty, and upload limitation are stated plainly.
 
@@ -511,6 +518,7 @@ Before reporting back:
 - Assuming `--followup` alone guarantees reuse of the same Chrome process and tab.
 - Using `--browser-tab current` when an exact saved conversation URL or target id is available.
 - Removing attach flags after a reuse failure and silently allowing Oracle to launch a replacement window.
+- Closing blank tabs in a reused or attached browser instead of limiting startup cleanup to a freshly launched Oracle-owned Chrome process.
 - Trusting stale model names instead of the current visible model picker or Oracle route/dry-run output.
 - Passing GPT-5.6 aliases to Oracle older than 0.16.0 and accepting an older resolved model.
 - Inventing `gpt-5.6-sol-pro` instead of keeping ChatGPT Pro and the `gpt-5.6-sol` API id separate.
