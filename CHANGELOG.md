@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 - 2026-07-17
+
+- Made same-topic Chrome reuse fail-closed: later packets must positively prove attachment to the recorded browser endpoint and exact ChatGPT tab before a live run.
+- Split first-run browser ownership (`--browser-port` plus `--browser-keep-browser`) from later attach commands (`--browser-attach-running`, `--remote-chrome`, and `--browser-tab`).
+- Removed the invalid Oracle 0.16 `--browser-attach-running` plus `--browser-keep-browser` example and documented the launch-only/attach-only flag boundary.
+- Clarified that browser `--followup` restores conversation configuration but does not guarantee the same Chrome process or tab.
+- Added endpoint, exact tab ref, reuse-preflight, and new-window fields to the local thread and ledger contracts; opening a replacement window now requires explicit user approval.
+
+## 0.4.0 - 2026-07-17
+
+- Changed the preferred browser architect target to ChatGPT `Pro`, currently GPT-5.6 Sol Pro on eligible accounts, using Oracle's `gpt-5-pro` alias.
+- Added separate, explicit routes for GPT-5.6 Sol in ChatGPT browser mode and the OpenAI API with `gpt-5.6-sol`.
+- Required Oracle 0.16.0 or newer before using GPT-5.6 aliases and added dry-run checks for detecting older-model normalization.
+- Replaced GPT-5.5-centric CLI and MCP examples with explicit GPT-5.6 Pro/Sol model selection and stronger model-evidence recording.
+- Clarified that `gpt-5.6-sol-pro` is not an API model id and that a `Pro` picker label alone is not server-generation proof.
+
 ## 0.3.1 - 2026-07-01
 
 - Added an explicit browser reuse policy for Oracle/ChatGPT browser consults.

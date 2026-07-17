@@ -1,12 +1,14 @@
 ---
 name: gpt-pro-architect-loop
 description: Use when the user wants ChatGPT Pro to act as an external architect, reviewer, or decision gate for Codex work across repo implementation rounds; optionally use Oracle as a transport helper when available.
-version: 0.3.1
+version: 0.5.0
 ---
 
 # GPT Pro Architect Loop
 
 Use a dedicated external architect loop while Codex remains the builder with local repo access. The local repo is the canonical memory; the external model is an advisory reviewer fed by bounded, redacted packets.
+
+For the highest-capability browser review, target ChatGPT `Pro`, currently GPT-5.6 Sol Pro on eligible accounts. Keep that browser target distinct from the GPT-5.6 Sol API model.
 
 Oracle is optional. Prefer it when it is installed because it handles file bundling, dry runs, sessions, follow-ups, and browser automation more reliably than manual ChatGPT.com operation. If Oracle is absent, blocked, or not approved for the current task, use the original browser path without treating that as a failure.
 
@@ -40,7 +42,38 @@ Use the first available path that fits the user's approval scope. Skip Oracle wh
 3. Oracle render/copy mode when automation is blocked but a prepared bundle is still useful.
 4. Manual ChatGPT.com browser thread as the final fallback.
 
+Exception: when `thread.md` marks an active same-topic browser surface with `reuse required: true`, exact endpoint-plus-tab reuse outranks this transport order. Use CLI attach or manual continuation in the visible tab instead of an MCP path that cannot target that surface.
+
 Do not let a stronger transport weaken the safety rules. Oracle is a delivery layer, not the source of truth. Manual ChatGPT browser remains a valid path.
+
+## GPT-5.6 Target Policy
+
+Keep the product label, Oracle alias, and API model id separate:
+
+- Preferred architect target: ChatGPT browser `Pro`, requested from Oracle 0.16.0 or newer as `gpt-5-pro`. On eligible accounts, ChatGPT currently maps `Pro` to GPT-5.6 Sol Pro.
+- Base Sol browser target: `gpt-5.6-sol` with `browserThinkingTime: "heavy"` or CLI `--browser-thinking-time heavy` for Extra High reasoning.
+- API target: `gpt-5.6-sol`. API use is a different engine, may incur charges, and requires approval for that destination and engine.
+- Do not use `gpt-5.6-sol-pro`; it is not an official API model id. GPT-5.6 Sol Pro is a ChatGPT picker target.
+- Treat `chatgpt-pro-heavy` as a compatibility preset, not canonical GPT-5.6 model evidence. New GPT-5.6 MCP examples must use explicit `engine`, `model`, and model-selection fields.
+
+Before the first GPT-5.6 consult in a session, verify Oracle support locally:
+
+```bash
+oracle --version
+oracle --help --verbose | rg 'gpt-5\.6|gpt-5-pro'
+```
+
+Require Oracle 0.16.0 or newer before passing `gpt-5.6` or `gpt-5.6-sol`. Older Oracle builds can normalize those labels to an older model. Update Oracle or use the manual ChatGPT picker fallback instead of silently accepting the wrong target.
+
+For model evidence, record all of the following when available:
+
+- Oracle version.
+- Requested Oracle alias.
+- Dry-run resolved model.
+- Live ChatGPT picker label and selection status.
+- Any rollout, plan, workspace, or server-generation uncertainty.
+
+A dry run proves routing only. A `Pro` picker label proves picker selection, but it does not independently prove the server-side model generation. Never perform a live verification by transmitting a packet without the required approval.
 
 ## Session Continuity Policy
 
@@ -53,37 +86,43 @@ Start a new conversation only when one of these is true:
 - The prior conversation is unrecoverable after checking Oracle sessions and the saved thread URL.
 - The transport cannot technically continue the prior conversation, and the limitation is recorded in `thread.md` and `ledger.md`.
 
+For an active same-topic loop, the last two conditions are blockers, not automatic permission to reset the browser. Obtain explicit user approval before opening a replacement window or conversation.
+
 For same-topic work:
 
 1. Read `.codex/gpt-pro-architect/thread.md` before each consult.
-2. Reuse the active conversation URL, Oracle session, browser tab, or slug family when the transport supports it.
+2. Reuse the same Chrome process and the exact active ChatGPT tab. Treat the saved conversation URL or target id plus the recorded CDP endpoint as the browser identity; a matching slug or Oracle session alone is insufficient.
 3. Prefer `browserFollowUps` or CLI `--browser-follow-up` for challenge/final-decision passes inside the same ChatGPT conversation.
-4. Keep browser conversations unarchived until the topic is complete: use `browserArchive: "never"` and `browserKeepBrowser: true` in Oracle MCP, or the equivalent CLI flags.
-5. If Oracle MCP cannot continue a completed ChatGPT conversation, switch to Oracle CLI `--followup`, `--browser-tab`, render/copy, or manual browser continuation instead of silently starting a new chat.
-6. If a new session is unavoidable, keep the same `topic_id` and slug family, record the reason, and include the previous conversation URL in the next packet.
+4. Keep browser conversations unarchived until the topic is complete. Use `browserKeepBrowser: true` or CLI `--browser-keep-browser` only for the command that launches and owns the persistent browser; never combine it with `--browser-attach-running`.
+5. For a later packet, require a dry-run control plan that explicitly attaches to the recorded endpoint and reuses the recorded tab. If the plan would launch Chrome, open a dedicated tab, or cannot prove reuse, stop before the live run.
+6. If Oracle MCP cannot target the exact existing tab, switch to the explicit CLI attach path or manually continue in the already-visible tab. Do not use a new MCP consult as a fallback.
+7. Treat CLI `--followup` as conversation recovery only. It may restore a conversation URL from stored session configuration, but it does not prove reuse of the same Chrome process or tab.
+8. If reuse fails, keep the same `topic_id` and slug family, record the failure, and ask the user before opening any new Chrome window or conversation.
 
 ## Browser Reuse Policy
 
-Prefer reusing an existing ChatGPT/Oracle Chrome surface over opening a fresh Chrome window. A new browser window is acceptable only when reuse is not available, not supported by the active transport, or would risk crossing topics/accounts/approval scopes.
+For an active same-topic loop, browser reuse is fail-closed: do not open a fresh Chrome window or replacement ChatGPT tab unless the user explicitly approves that reset. The required invariant is one recorded Chrome debugging endpoint plus one exact ChatGPT conversation tab.
 
 Before a browser-based consult:
 
 1. Read `.codex/gpt-pro-architect/thread.md` and look for:
    - `active conversation url`
-   - `oracle latest session id`
-   - `browser tab ref`
+   - `browser endpoint`
+   - `browser tab ref` (exact conversation URL or target id)
+   - `browser owner`
+   - `reuse required`
+   - `new window allowed`
+   - `last reuse preflight`
    - `slug family`
    - `continuation limitation`
 2. Run `oracle status --hours 72 --limit 50` when Oracle CLI is available.
-3. If a same-topic Oracle session or ChatGPT conversation exists, continue it with `--followup` or a saved browser tab instead of creating a new session.
-4. Keep `--browser-keep-browser` and `--browser-archive never` for active topics so the browser surface remains reusable.
-5. If Oracle dry-run or output says it will launch a visible Chrome window and an existing Oracle-controlled Chrome is already available, prefer one of these reuse paths before the live run:
-   - `--followup <sessionId|responseId>` for same-topic continuation;
-   - `--browser-tab <saved-tab-or-conversation-ref>` when a tab ref or conversation URL is known and the installed Oracle CLI accepts it;
-   - `--browser-attach-running` to attach to an existing Oracle/Chrome browser when the installed Oracle CLI supports it;
-   - `--remote-chrome <debug-endpoint>` only when the user intentionally provided a remote-debugging Chrome endpoint.
-6. If MCP consult does not expose attach-running or tab-selection fields, use MCP for normal new consults but switch to Oracle CLI for same-topic browser reuse when the saved session/tab matters.
-7. If none of the reuse paths works, record the limitation in `thread.md` and `ledger.md` before opening a new browser conversation.
+3. For the first packet with no reusable surface, launch exactly one persistent Oracle browser on a fixed port such as `9222` with `--browser-port 9222 --browser-keep-browser --browser-archive never`. After the live run, record the actual endpoint and exact active conversation URL or target id.
+4. For every later packet, use all of `--browser-attach-running`, `--remote-chrome <recorded-endpoint>`, and `--browser-tab <recorded-exact-url-or-target-id>`. Use `--browser-model-strategy current` and `--browser-archive never`; omit `--browser-keep-browser`, `--browser-port`, and `--followup` from the attach command.
+5. Run that exact later-packet command with `--dry-run summary` first. Continue only when its control plan says it will attach to an already-running browser, reuse the matching ChatGPT tab, and leave the existing browser process alone.
+6. Reject the live run if the dry run says it will launch Chrome, open a dedicated ChatGPT tab, cannot match the endpoint/tab, or otherwise lacks positive reuse evidence. Do not remove the attach flags to make the command succeed.
+7. Prefer an exact conversation URL or target id over `--browser-tab current`. Use `current` only immediately after verifying that the endpoint's current tab is the recorded active conversation.
+8. If MCP consult does not expose endpoint and tab selection, use MCP only for a first/new consult or follow-ups bundled into the same invocation. Switch to the CLI attach path for later same-topic packets.
+9. If attach is unsupported or fails, record the limitation and manually continue in the already-visible tab, or pause for user direction. Opening a new window is not an automatic fallback.
 
 Do not inspect Chrome cookies, local storage, profiles, passwords, or account internals while trying to reuse a browser. Reuse means targeting a known conversation/session surface, not reading browser state.
 
@@ -116,7 +155,7 @@ Do not inspect Chrome cookies, local storage, profiles, passwords, or account in
 
 - destination:
 - transport: Oracle MCP | Oracle CLI | Oracle render/copy | ChatGPT browser
-- model target: ChatGPT Pro / Pro Extended or Oracle preset
+- model target: GPT-5.6 Sol Pro via `gpt-5-pro` | GPT-5.6 Sol via `gpt-5.6-sol` | approved fallback
 - topic id:
 - status: active | complete | blocked | superseded
 - slug family:
@@ -124,7 +163,14 @@ Do not inspect Chrome cookies, local storage, profiles, passwords, or account in
 - previous conversation urls:
 - oracle latest session id:
 - oracle session ids:
-- browser tab ref:
+- browser reuse mode: pinned-cdp | attached | manual
+- browser endpoint: 127.0.0.1:9222
+- browser owner: oracle-launched | attached | manual
+- browser tab ref: exact conversation URL or target id
+- reuse required: true
+- new window allowed: false unless explicitly approved
+- last reuse preflight:
+- new windows opened this topic: 0
 - created:
 - updated:
 - last packet:
@@ -141,10 +187,11 @@ Do not inspect Chrome cookies, local storage, profiles, passwords, or account in
 ```bash
 command -v oracle
 oracle --version
+oracle --help --verbose | rg 'gpt-5\.6|gpt-5-pro'
 oracle status --hours 24 --limit 20
 ```
 
-6. If Oracle MCP is configured for Codex, prefer it. If it is not available in the current session, use the CLI or manual browser path and note that MCP may require a new Codex session after config changes.
+6. If Oracle MCP is configured for Codex, prefer it for a new topic. When strict same-window reuse is active and MCP cannot target the recorded endpoint/tab, prefer CLI attach or manual continuation. If MCP is unavailable, use the CLI or manual browser path and note that MCP may require a new Codex session after config changes.
 
 ## Oracle MCP Flow
 
@@ -155,8 +202,9 @@ Use this optional path only when the `oracle` MCP server is available as a calla
 
 ```json
 {
-  "preset": "chatgpt-pro-heavy",
   "engine": "browser",
+  "model": "gpt-5-pro",
+  "browserModelStrategy": "select",
   "prompt": "<Architect contract + decision question>",
   "files": [
     ".codex/gpt-pro-architect/packets/packet-<N>.md"
@@ -169,7 +217,7 @@ Use this optional path only when the `oracle` MCP server is available as a calla
 ```
 
 3. Review the resolved files and destination. If the data categories match the user's approval scope, run the same consult with `dryRun: false`.
-4. Use `preset: "chatgpt-pro-heavy"` for ChatGPT Pro browser mode. Use `engine: "browser"` explicitly if routing is ambiguous.
+4. Use explicit `engine: "browser"`, `model: "gpt-5-pro"`, and `browserModelStrategy: "select"` for GPT-5.6 Sol Pro. If Pro is unavailable and the approved fallback is base Sol, use `model: "gpt-5.6-sol"` with `browserThinkingTime: "heavy"`.
 5. For architecture decisions that benefit from a challenge pass, use `browserFollowUps` such as:
 
 ```json
@@ -179,22 +227,23 @@ Use this optional path only when the `oracle` MCP server is available as a calla
 ]
 ```
 
-6. For same-topic revisions, first try to continue the active session or browser tab. If MCP cannot continue a completed conversation, switch to CLI `--followup`, `--browser-tab`, render/copy, or manual browser continuation.
+6. For same-topic revisions inside one MCP invocation, use `browserFollowUps`. Across separate packets, if MCP cannot address the recorded endpoint and exact tab, switch to the CLI attach path or manually continue in the already-visible tab; do not start another MCP consult.
 7. If a long browser consult appears stalled, check Oracle sessions before retrying. Do not start duplicate runs until `oracle status` or MCP `sessions` shows the prior run is finished or unrecoverable.
-8. Record the archive mode, keep-browser setting, conversation URL, session id, and any model-selection verification caveat in `thread.md` and `ledger.md`.
+8. Record the archive mode, browser endpoint, exact tab ref, reuse preflight, conversation URL, session id, and any model-selection verification caveat in `thread.md` and `ledger.md`.
 
 ## Oracle CLI Flow
 
-Use this optional path when Oracle is installed but MCP is not available in the current Codex session.
+Use this path when Oracle is installed and MCP is unavailable, or whenever an active same-topic loop requires exact endpoint-plus-tab reuse that MCP cannot express.
 
 1. Save the packet first.
-2. Preview the resolved bundle:
+2. For the first packet when no reusable browser is recorded, preview a single persistent browser launch on a fixed debugging port:
 
 ```bash
 oracle \
   --engine browser \
-  --model gpt-5.5-pro \
-  --browser-model-strategy current \
+  --model gpt-5-pro \
+  --browser-model-strategy select \
+  --browser-port 9222 \
   --browser-archive never \
   --browser-keep-browser \
   --browser-attachments auto \
@@ -205,8 +254,48 @@ oracle \
   --file .codex/gpt-pro-architect/packets/packet-<N>.md
 ```
 
-3. If the dry run is clean and the user has approved the destination/data categories, run the live command without `--dry-run`.
-4. For manual review or blocked browser automation, render and copy the exact bundle:
+3. If the dry run is clean and the user has approved the destination/data categories, run it without `--dry-run`. Immediately record `127.0.0.1:9222` (or the chosen port) and the exact resulting ChatGPT conversation URL or target id in `thread.md`.
+4. For every later packet in the same topic, preview the exact attach command:
+
+```bash
+oracle \
+  --engine browser \
+  --model gpt-5-pro \
+  --browser-attach-running \
+  --remote-chrome 127.0.0.1:9222 \
+  --browser-tab '<recorded-exact-conversation-url-or-target-id>' \
+  --browser-model-strategy current \
+  --browser-archive never \
+  --browser-attachments auto \
+  --files-report \
+  --dry-run summary \
+  --slug <topic-id>-packet-<N> \
+  --prompt "Continue the same architect topic in this exact tab. Review packet <N>." \
+  --file .codex/gpt-pro-architect/packets/packet-<N>.md
+```
+
+The dry-run control plan must positively state that Oracle will attach to the running browser and reuse the matching tab. It must not say that Oracle will launch Chrome or open a dedicated tab. Only then remove `--dry-run summary` for the approved live run. Attach failure is a stop condition, not permission to launch a replacement window.
+
+5. Never combine `--browser-attach-running` with `--browser-keep-browser` or `--browser-port`; Oracle 0.16 rejects those combinations. Do not add `--followup` to the attach command: browser follow-up can restore stored conversation configuration without guaranteeing the same process/tab.
+6. If the approved target is base GPT-5.6 Sol instead of Pro, replace `--model gpt-5-pro` with `--model gpt-5.6-sol --browser-thinking-time heavy`.
+7. For challenge/final-decision passes known before a run, keep them in the same invocation and therefore the same tab:
+
+```bash
+oracle \
+  --engine browser \
+  --model gpt-5-pro \
+  --browser-model-strategy select \
+  --browser-port 9222 \
+  --browser-archive never \
+  --browser-keep-browser \
+  --browser-follow-up "Challenge the prior decision. Keep the scope tight." \
+  --browser-follow-up "Return the final APPROVE, REVISE, or BLOCK decision." \
+  --prompt "Review the architect packet."
+```
+
+When attaching to an already-recorded browser, replace `--browser-model-strategy select --browser-port 9222 --browser-keep-browser` in this example with `--browser-attach-running --remote-chrome <recorded-endpoint> --browser-tab <recorded-exact-url-or-target-id> --browser-model-strategy current`.
+
+8. For manual review or blocked browser automation, render and copy the exact bundle:
 
 ```bash
 oracle \
@@ -216,46 +305,21 @@ oracle \
   --file .codex/gpt-pro-architect/packets/packet-<N>.md
 ```
 
-5. If Oracle reports an existing matching/running session, reattach instead of rerunning:
+9. If Oracle reports an existing matching/running session, inspect it instead of duplicating the run:
 
 ```bash
 oracle status --hours 72 --limit 50
 oracle session <session-id-or-slug> --render
 ```
 
-6. If the next packet belongs to the same topic and Oracle can continue the browser session, prefer follow-up continuation and browser reuse. Keep the same Chrome/conversation surface when possible:
-
-```bash
-oracle \
-  --followup <session-id-or-response-id> \
-  --browser-archive never \
-  --browser-keep-browser \
-  --browser-follow-up "Challenge the prior decision. Keep the scope tight." \
-  --browser-follow-up "Return the final APPROVE, REVISE, or BLOCK decision in the required format." \
-  --prompt "Review the next packet in the same architect topic."
-```
-
-7. If a previous Oracle Chrome window is still open but `--followup` alone would launch a new one, try the installed CLI's browser reuse flags before sending the live packet:
-
-```bash
-oracle \
-  --followup <session-id-or-response-id> \
-  --browser-attach-running \
-  --browser-archive never \
-  --browser-keep-browser \
-  --prompt "Review the next packet in the same architect topic."
-```
-
-If `--browser-attach-running` is unsupported by the installed Oracle version, remove it and record that limitation. If the user has provided a remote-debugging Chrome endpoint, use `--remote-chrome <debug-endpoint>` instead of launching a new Chrome.
-
-8. Record Oracle session id, slug, model, engine, archive mode, keep-browser setting, conversation URL, browser tab/ref reuse attempt, and any browser automation limitation in `thread.md` and `ledger.md`.
+10. Record Oracle session id, slug, requested alias, resolved picker label, engine, archive mode, browser endpoint, exact tab ref, reuse preflight result, conversation URL, and any browser automation limitation in `thread.md` and `ledger.md`.
 
 ## Manual Browser Fallback
 
 Use this when Oracle is not installed, Oracle is blocked, Oracle is outside the current approval scope, or the user explicitly asks for the manual path. This is a first-class fallback, not a degraded review process.
 
 1. Open the saved dedicated ChatGPT.com thread for the active topic first. Create a new thread only when the Session Continuity Policy allows it. If the saved thread cannot be opened, fall back to Chrome, then Computer Use.
-2. In the current visible model picker, choose the best available Pro/Extended option. If no suitable Pro option is visible, stop and ask the user which model to use.
+2. In the current visible model picker, choose `Pro` for GPT-5.6 Sol Pro. If Pro is unavailable, use GPT-5.6 Sol at Extra High only when that fallback fits the approval scope; otherwise stop and ask the user which model to use.
 3. Pin the architect contract in the first message or re-send it when the thread has drifted.
 4. Save the resulting thread URL in `.codex/gpt-pro-architect/thread.md` after every packet.
 5. Before transmitting a packet, tell the user the destination and data categories, then request approval unless the current task already has explicit approval for those exact categories.
@@ -360,6 +424,7 @@ Collect focused diffs and test output, not the whole repo. Before sending, do a 
 Before sending a packet, run a local preflight that can catch obvious review blockers without spending an external review round:
 
 - Confirm `thread.md` points to the active topic, latest packet, next packet, and reuse rule.
+- For a later same-topic browser packet, confirm the saved endpoint and exact tab ref exist and the dry-run control plan positively proves attach-and-reuse without a new Chrome launch or tab.
 - Confirm every referenced file path exists or is explicitly marked as future work.
 - Search the packet and attached docs for unresolved placeholders such as `TODO`, `TBD`, `missing`, `placeholder`, and stale packet numbers.
 - Check packet size with `wc -c`; keep the main packet under 12k-20k characters unless the user approved a larger bundle or file uploads.
@@ -393,6 +458,10 @@ After every architect exchange:
 - oracle session:
 - archive policy:
 - continuation:
+- browser endpoint:
+- browser tab ref:
+- reuse preflight:
+- new window opened: no | yes with approval reference
 - model evidence:
 - architect decision:
 - accepted actions:
@@ -426,6 +495,8 @@ Before reporting back:
 - User approval scope is recorded.
 - No known secrets or unrelated personal data were transmitted.
 - Oracle session id or browser thread URL is recorded when available.
+- For same-topic browser work, the endpoint, exact tab ref, positive reuse preflight, and new-window count are recorded.
+- Oracle version, requested alias, dry-run resolution, and live picker evidence are recorded when available.
 - Archive behavior, continuation behavior, skipped MCP setup, browser automation, model selection uncertainty, and upload limitation are stated plainly.
 
 ## Common Mistakes
@@ -436,6 +507,12 @@ Before reporting back:
 - Sending screenshots or files without explicit user approval.
 - Starting a new ChatGPT conversation for the same topic instead of continuing or recording why continuation was impossible.
 - Rerunning an Oracle session instead of reattaching to an existing run.
+- Combining `--browser-attach-running` with launch-only `--browser-keep-browser` or `--browser-port` flags.
+- Assuming `--followup` alone guarantees reuse of the same Chrome process and tab.
+- Using `--browser-tab current` when an exact saved conversation URL or target id is available.
+- Removing attach flags after a reuse failure and silently allowing Oracle to launch a replacement window.
 - Trusting stale model names instead of the current visible model picker or Oracle route/dry-run output.
+- Passing GPT-5.6 aliases to Oracle older than 0.16.0 and accepting an older resolved model.
+- Inventing `gpt-5.6-sol-pro` instead of keeping ChatGPT Pro and the `gpt-5.6-sol` API id separate.
 - Treating asset generation failure as architect-review failure.
 - Forgetting to update durable continuity notes after a decision.
